@@ -129,6 +129,24 @@ impl Paste {
         self.expires_at
             .is_some_and(|e| e < OffsetDateTime::now_utc())
     }
+
+    pub async fn get_content(
+        &self,
+        state: &AppState,
+    ) -> anyhow::Result<(u64, impl AsyncBufRead + 'static)> {
+        let mut file = tokio::fs::File::open(state.data_dir.join(&self.path))
+            .await
+            .context("Opening file")?;
+        let len = file
+            .seek(std::io::SeekFrom::End(0))
+            .await
+            .context("getting file length")?;
+        file.seek(std::io::SeekFrom::Start(0))
+            .await
+            .context("getting file length")?;
+        let file = BufReader::new(file);
+        Ok((len, file))
+    }
 }
 
 pub use slug::Slug;
@@ -286,6 +304,9 @@ mod slug {
 }
 
 pub use hash::Hash;
+use tokio::io::{AsyncBufRead, AsyncSeekExt, BufReader};
+
+use crate::AppState;
 mod hash {
     use anyhow::anyhow;
     use sqlx::{Database, Decode, Encode, Sqlite, Type};

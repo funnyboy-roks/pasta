@@ -6,78 +6,54 @@
     import CodeMirror from 'svelte-codemirror-editor';
     import { oneDark } from '@codemirror/theme-one-dark';
 
+    import LinkIcon from '@lucide/svelte/icons/link';
     import SaveIcon from '@lucide/svelte/icons/save';
     import PencilIcon from '@lucide/svelte/icons/pencil';
     import EyeIcon from '@lucide/svelte/icons/eye';
     import EyeOffIcon from '@lucide/svelte/icons/eye-off';
 
+    import PasswordPrompt from '$lib/components/PasswordPrompt.svelte';
+    import RedirectPrompt from '$lib/components/RedirectPrompt.svelte';
+    import LinkCreation from '$lib/components/LinkCreation.svelte';
+
     import { PUBLIC_PASTA_UI_API } from '$env/static/public';
     import { supported_langs } from '$lib/lang';
-    import { decrypt, encrypt, type EncryptedContent } from '$lib/crypto';
-    import PasswordPrompt from '$lib/components/PasswordPrompt.svelte';
+    import { decrypt } from '$lib/crypto';
     import { toast } from 'svelte-sonner';
     import { hash, on_hash, set_hash } from '$lib/store';
-    import { compress } from '$lib/save';
+    import { ENCRYPTION_TYPE, save_content, type EncryptedContent } from '$lib/save';
 
     let content = $state('');
     let password = $state('');
-    let language = $state('');
+    let language = $state('plain');
 
     let show_password = $state(false);
 
     let saving = $state(false);
 
     let password_prompt = $state<PasswordPrompt>();
-
-    const ENCRYPTION_TYPE = 'application/aes256gcm-encrypted';
+    let redirect = $state('');
+    let create_link = $state(false);
 
     const save = () => {
         const save_inner = async () => {
             saving = true;
 
-            const encrypted = !!password;
+            const content_type = `text/${language}; charset=utf-8`;
 
-            const content_type = language
-                ? `text/${language}; charset=utf-8`
-                : 'text/plain; charset=utf-8';
-
-            const body = encrypted
-                ? await encrypt(
-                      JSON.stringify(<EncryptedContent>{
-                          content_type,
-                          content: btoa(content),
-                      }),
-                      password
-                  )
-                : content;
-
-            const res = await fetch(`${PUBLIC_PASTA_UI_API}/`, {
-                method: 'POST',
-                headers: {
-                    'content-type': encrypted ? ENCRYPTION_TYPE : content_type,
-                    'content-encoding': 'gzip',
-                },
-                body: await compress(body),
-            });
+            const res = await save_content(content, password, content_type);
 
             saving = false;
 
-            if (res.status !== 201) {
-                switch (res.status) {
-                    case 409:
-                        throw 'Slug already exists';
-                    case 413:
-                        throw 'Payload too large';
+            switch (res.status) {
+                case 'ok': {
+                    set_hash(res.slug);
+                    return res.link;
+                }
+                case 'error': {
+                    throw res.message;
                 }
             }
-
-            const slug = await res.text();
-
-            set_hash(slug);
-            const link = `${location.origin}/#${slug}`;
-            navigator.clipboard.writeText(link);
-
-            return link;
         };
 
         toast.promise(save_inner, {
@@ -89,8 +65,9 @@
 
     const load_hash = async (hash: string) => {
         if (!hash) return;
+        if (password_prompt === undefined) throw new Error('password_prompt === undefined');
 
-        const res = await fetch(`${PUBLIC_PASTA_UI_API}/${hash}`, {
+        const res = await fetch(`${PUBLIC_PASTA_UI_API}/${hash}?redirect=false`, {
             method: 'GET',
         });
 
@@ -117,18 +94,26 @@
             }
         };
 
-        if (encrypted) {
+        if (content_type === 'application/link') {
+            const url = await res.text();
+            redirect = url;
+        } else if (encrypted) {
             const text = await res.text();
-            const encrypted = await password_prompt!.prompt<EncryptedContent>(async (password) => {
+            const body = await password_prompt.prompt<EncryptedContent>(async (password) => {
                 try {
                     return JSON.parse(await decrypt(text, password));
                 } catch {
                     return null;
                 }
             });
-            if (encrypted) {
-                language = lang_from_type(encrypted.content_type) ?? '';
-                content = atob(encrypted.content);
+
+            if (body) {
+                if (body.content_type === 'application/link') {
+                    redirect = atob(body.content);
+                } else {
+                    language = lang_from_type(body.content_type) ?? '';
+                    content = atob(body.content);
+                }
             } else {
                 set_hash('');
                 content = '';
@@ -147,17 +132,32 @@
 </svelte:head>
 
 <PasswordPrompt bind:this={password_prompt} />
+<RedirectPrompt redirect={redirect} />
+<LinkCreation bind:open={create_link} />
 
 <div class="flex h-screen max-h-screen flex-col">
     <div class="flex flex-row items-center justify-between bg-secondary">
         <div class="flex flex-row items-center">
-            <Button href="/" variant="ghost">
+            <Button variant="default" onclick={() => create_link = true}>
+                <LinkIcon /> New Link
+            </Button>
+            <Button href="/">
                 <PencilIcon /> New
             </Button>
-            <Button onclick={save} disabled={saving} variant="ghost">
-                <SaveIcon />
-                {saving ? 'Saving...' : 'Save'}
-            </Button>
+        </div>
+        <div class="flex-start flex flex-row items-center gap-1">
+            <Select.Root type="single" name="language" bind:value={language}>
+                <Select.Trigger class="w-[180px]">
+                    {supported_langs[language]?.name ?? 'Language'}
+                </Select.Trigger>
+                <Select.Content>
+                    {#each Object.entries(supported_langs) as [key, lang] (key)}
+                        <Select.Item value={key} label={lang.name}>
+                            {lang.name}
+                        </Select.Item>
+                    {/each}
+                </Select.Content>
+            </Select.Root>
             <div class="flex w-xs flex-row gap-1">
                 <Input
                     type={show_password ? 'text' : 'password'}
@@ -175,21 +175,11 @@
                         <EyeOffIcon />
                     {/if}
                 </Button>
+                <Button onclick={save} disabled={saving}>
+                    <SaveIcon />
+                    {saving ? 'Saving...' : 'Save'}
+                </Button>
             </div>
-        </div>
-        <div class="flex-start flex flex-row items-center">
-            <Select.Root type="single" name="language" bind:value={language}>
-                <Select.Trigger class="w-[180px]">
-                    {supported_langs[language]?.name ?? 'Language'}
-                </Select.Trigger>
-                <Select.Content>
-                    {#each Object.entries(supported_langs) as [key, lang] (key)}
-                        <Select.Item value={key} label={lang.name}>
-                            {lang.name}
-                        </Select.Item>
-                    {/each}
-                </Select.Content>
-            </Select.Root>
         </div>
     </div>
     <div class="flex grow flex-col">

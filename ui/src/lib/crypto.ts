@@ -1,10 +1,5 @@
 // Transformed from https://blog.elantha.com/encrypt-in-the-browser
 
-export type EncryptedContent = {
-    content_type: string;
-    content: string;
-};
-
 export const encrypt = async (content: string, password: string) => {
     const salt = crypto.getRandomValues(new Uint8Array(16));
     const key = await get_key(password, salt);

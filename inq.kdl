@@ -8,5 +8,11 @@ queries {
     new POST "${BASE_URL}/${SLUG}" {
         body text="${CONTENT}"
     }
+    new-link POST "${BASE_URL}/${SLUG}" {
+        headers {
+            content-type "application/link"
+        }
+        body text="${CONTENT}"
+    }
     get GET "${BASE_URL}/${SLUG}"
 }

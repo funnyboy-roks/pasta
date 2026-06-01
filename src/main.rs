@@ -8,14 +8,16 @@ use async_compression::{
 use axum::{
     Router,
     body::{Body, BodyDataStream},
-    extract::{Path, Request, State},
+    extract::{Path, Query, Request, State},
     http::{
         HeaderMap, HeaderValue, StatusCode,
         header::{ACCEPT_ENCODING, CONTENT_ENCODING, CONTENT_LENGTH, CONTENT_TYPE},
     },
+    response::{IntoResponse, Redirect, Response},
     routing::{get, get_service, post},
 };
 use futures_util::{Stream, TryStreamExt};
+use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
 use tokio::{
@@ -51,17 +53,29 @@ impl Debug for AppState {
         f.debug_struct("AppState")
             .field("pool", &"..")
             .field("data_dir", &self.data_dir)
+            .field("db_file", &self.db_file)
             .finish()
     }
+}
+
+const fn bool_true() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize)]
+struct GetParmas {
+    #[serde(default = "bool_true")]
+    redirect: bool,
 }
 
 #[tracing::instrument(skip(headers, state))]
 #[axum::debug_handler]
 async fn get_one(
     Path(slug): Path<Slug>,
+    Query(params): Query<GetParmas>,
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-) -> Result<(HeaderMap, Body), HttpError> {
+) -> Result<Response, HttpError> {
     let Some(paste) = Paste::get_one(&state.pool, &slug).await? else {
         return Err(StatusCode::NOT_FOUND.into());
     };
@@ -78,10 +92,20 @@ async fn get_one(
         false
     };
 
-    let file = tokio::fs::File::open(state.data_dir.join(paste.path))
-        .await
-        .context("Opening file")?;
-    let file = BufReader::new(file);
+    let (content_len, file) = paste.get_content(&state).await?;
+
+    // special link handling
+    if params.redirect
+        && let Some(content_type) = &paste.content_type
+        && content_type == "application/link"
+    {
+        let mut s = String::with_capacity(content_len as _);
+        let mut dec = GzipDecoder::new(file);
+        dec.read_to_string(&mut s)
+            .await
+            .context("reading link body")?;
+        return Ok(Redirect::temporary(&s).into_response());
+    }
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -89,10 +113,11 @@ async fn get_one(
         HeaderValue::from_str(&format!("sha256=:{}:", paste.hash.as_base64()))
             .expect("all characters in base64 and in string are be valid"),
     );
-    if let Some(c) = paste.content_type {
+    headers.insert("content-length", content_len.into());
+    if let Some(c) = &paste.content_type {
         headers.insert(
             CONTENT_TYPE,
-            HeaderValue::from_str(&c).context("Parsing content_type")?,
+            HeaderValue::from_str(c).context("Parsing content_type")?,
         );
     }
 
@@ -105,10 +130,10 @@ async fn get_one(
         let stream = ReaderStream::new(dec);
         Body::from_stream(stream)
     };
-    Ok((headers, body))
+    Ok((headers, body).into_response())
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(state))]
 async fn get_matching(
     state: &AppState,
     hash: &Hash,

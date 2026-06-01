@@ -23,6 +23,13 @@ it will be returned when that item is fetched later.  The web ui uses
 `text/<language>` to do syntax highlighting and `application/aes256gcm`
 for its encrypted content.
 
+#### `application/link`
+
+If the `Content-Type` header is set to `application/link`, then the
+server will redirect any requests to get that resource to the underlying
+link.  If the GET request is made with `?redirect=false`, then this
+behaviour is disabled.
+
 ### Content-Encoding
 
 If possible, please specify the `Content-Encoding` header as `gzip`

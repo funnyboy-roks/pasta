@@ -16,6 +16,7 @@ import { nix } from '@replit/codemirror-lang-nix';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const supported_langs: Record<string, { name: string; language: () => any }> = {
+    plain: { name: 'Plaintext', language: () => null },
     javascript: { name: 'JavaScript', language: javascript },
     typescript: { name: 'TypeScript', language: () => javascript({ typescript: true }) },
     cpp: { name: 'C++', language: cpp },
