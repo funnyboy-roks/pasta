@@ -43,6 +43,7 @@ const MAX_CONTENT_LENGTH: usize = 10 * 1000;
 struct AppState {
     pool: SqlitePool,
     data_dir: PathBuf,
+    db_file: PathBuf,
 }
 
 impl Debug for AppState {
@@ -306,23 +307,27 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let db_file: PathBuf = std::env::var("DB_FILE")
+        .context("DB_FILE env var not set")?
+        .into();
+
     // create database if it doesn't exist
     OpenOptions::new()
         .append(true)
         .create(true)
-        .open("data.db")
+        .open(&db_file)
         .await
         .context("Creating database")?;
 
     let state = Arc::new(AppState {
-        pool: SqlitePool::connect("sqlite:data.db").await?,
-        data_dir: PathBuf::from("data"),
+        pool: SqlitePool::connect(&format!("sqlite:{}", db_file.display())).await?,
+        data_dir: std::env::var("DATA_DIR")
+            .context("DATA_DIR env var not set")?
+            .into(),
+        db_file,
     });
 
     sqlx::migrate!("./migrations").run(&state.pool).await?;
-    tokio::fs::create_dir_all(&state.data_dir)
-        .await
-        .context("creating data dir")?;
 
     cleanup::schedule(Arc::clone(&state));
 

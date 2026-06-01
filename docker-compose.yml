@@ -1,0 +1,9 @@
+services:
+  pasta:
+    build: .
+    ports:
+      - 5000:3000
+    volumes:
+      - ./data:/data
+      - ./db:/db
+    restart: unless-stopped
