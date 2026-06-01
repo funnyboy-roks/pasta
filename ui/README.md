@@ -1,42 +1,26 @@
-# sv
+# Pasta UI
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+This UI is written using svelte kit with svelte-shadcn for ui components
+and CodeMirror for the editor.
 
-## Creating a project
+## Development
 
-If you're seeing this, you've probably already done this step. Congrats!
+Start the dev server with
 
 ```sh
-# create a new project
-npx sv create my-app
+deno task dev
 ```
 
-To recreate this project with the same configuration:
+Add shadcn components with
 
 ```sh
-# recreate this project
-deno run npm:sv@0.15.3 create --template minimal --types ts --add eslint tailwindcss="plugins:none" prettier --install deno ui
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+deno run -A shadcn add <component>
 ```
 
 ## Building
 
-To create a production version of your app:
+Build into static files with
 
 ```sh
-npm run build
+deno task build
 ```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
