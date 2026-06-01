@@ -1,44 +1,74 @@
-import prettier from 'eslint-config-prettier';
-import path from 'node:path';
-import { includeIgnoreFile } from '@eslint/compat';
 import js from '@eslint/js';
-import svelte from 'eslint-plugin-svelte';
-import { defineConfig } from 'eslint/config';
-import globals from 'globals';
 import ts from 'typescript-eslint';
-import svelteConfig from './svelte.config.js';
+import svelte from 'eslint-plugin-svelte';
+import prettier from 'eslint-config-prettier';
+import globals from 'globals';
 
-const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
-
-export default defineConfig(
-	includeIgnoreFile(gitignorePath),
-	js.configs.recommended,
-	ts.configs.recommended,
-	svelte.configs.recommended,
-	prettier,
-	svelte.configs.prettier,
-	{
-		languageOptions: { globals: { ...globals.browser, ...globals.node } },
-		rules: {
-			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
-			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
-			"no-undef": 'off'
-		}
-	},
-	{
-		files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
-		languageOptions: {
-			parserOptions: {
-				projectService: true,
-				extraFileExtensions: ['.svelte'],
-				parser: ts.parser,
-				svelteConfig
-			}
-		}
-	},
-	{
-		// Override or add rule settings here, such as:
-		// 'svelte/button-has-type': 'error'
-		rules: {}
-	}
-);
+/** @type {import('eslint').Linter.Config[]} */
+export default [
+    js.configs.recommended,
+    ...ts.configs.recommended,
+    ...svelte.configs['flat/recommended'],
+    prettier,
+    ...svelte.configs['flat/prettier'],
+    {
+        languageOptions: {
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+            },
+        },
+    },
+    {
+        files: ['**/*.svelte'],
+        languageOptions: {
+            parserOptions: {
+                parser: ts.parser,
+            },
+        },
+    },
+    {
+        ignores: [
+            'build/',
+            '.svelte-kit/',
+            'dist/',
+            'tailwind.config.ts',
+            'vite.config.ts.*',
+            'src/lib/components/ui/',
+            'docs/',
+        ],
+    },
+    {
+        rules: {
+            eqeqeq: 'error',
+            'no-useless-assignment': 'warn',
+            'consistent-return': 'error',
+            'dot-notation': 'error',
+            'no-unneeded-ternary': 'warn',
+            'object-shorthand': 'error',
+            'prefer-const': 'warn',
+            'prefer-destructuring': 'error',
+            'no-useless-rename': 'error',
+            'no-cond-assign': 'error',
+            '@typescript-eslint/no-unused-vars': [
+                'error', // Change to 'error' if you want it to be an error
+                {
+                    args: 'all',
+                    argsIgnorePattern: '^_',
+                    caughtErrors: 'all',
+                    caughtErrorsIgnorePattern: '^_',
+                    destructuredArrayIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    ignoreRestSiblings: true,
+                },
+            ],
+            '@typescript-eslint/naming-convention': [
+                'error',
+                {
+                    selector: 'variableLike',
+                    format: ['snake_case', 'UPPER_CASE', 'camelCase'],
+                },
+            ],
+        },
+    },
+];

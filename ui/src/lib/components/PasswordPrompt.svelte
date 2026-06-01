@@ -13,14 +13,19 @@
     let error = $state('');
     let unlocking = $state(false);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let resolve: ((t: any | null) => void) | undefined = undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let on_passwd: ((password: string) => Promise<any | null>) | undefined = undefined;
 
-    export const prompt = <T>(on_password: (password: string) => Promise<T | null>): Promise<T | null> => new Promise((res, _) => {
-        open = true;
-        on_passwd = on_password;
-        resolve = res;
-    });
+    export const prompt = <T,>(
+        on_password: (password: string) => Promise<T | null>
+    ): Promise<T | null> =>
+        new Promise((res) => {
+            open = true;
+            on_passwd = on_password;
+            resolve = res;
+        });
 
     const submit = async (e: SubmitEvent) => {
         e.preventDefault();
@@ -52,7 +57,7 @@
     };
 </script>
 
-<Dialog.Root bind:open={open}>
+<Dialog.Root bind:open>
     <Dialog.Content
         showCloseButton={false}
         escapeKeydownBehavior="defer-otherwise-ignore"
@@ -61,21 +66,30 @@
         preventScroll
     >
         <Dialog.Header>
-            <div class="w-full flex flex-row justify-center my-5">
-            <Lock size={96} />
+            <div class="my-5 flex w-full flex-row justify-center">
+                <Lock size={96} />
             </div>
             <Dialog.Title>This Pasta is Locked with a Password!</Dialog.Title>
-                <Dialog.Description>
-                    This pasta is locked with a password.  Please enter the
-                    password in order to unlock the pasta.
-                </Dialog.Description>
+            <Dialog.Description>
+                This pasta is locked with a password. Please enter the password in order to unlock
+                the pasta.
+            </Dialog.Description>
         </Dialog.Header>
         <form onsubmit={submit}>
             <div class="flex flex-col gap-1">
                 <div class="flex flex-col gap-1">
                     <div class="flex flex-row gap-1">
-                        <Input type={show_password ? 'text' : 'password'} autofocus bind:value={password} placeholder="Password" />
-                        <Button variant="outline" size="icon" onclick={() => show_password = !show_password}>
+                        <Input
+                            type={show_password ? 'text' : 'password'}
+                            autofocus
+                            bind:value={password}
+                            placeholder="Password"
+                        />
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onclick={() => (show_password = !show_password)}
+                        >
                             {#if show_password}
                                 <EyeIcon />
                             {:else}
@@ -90,7 +104,12 @@
                     {/if}
                 </div>
                 <div class="flex flex-row justify-between">
-                    <Button type="button" class="w-1/3 self-end" variant="secondary" onclick={new_pasta}>
+                    <Button
+                        type="button"
+                        class="w-1/3 self-end"
+                        variant="secondary"
+                        onclick={new_pasta}
+                    >
                         New Pasta
                     </Button>
                     <Button type="submit" class="w-1/3 self-end" disabled={unlocking || !password}>

@@ -1,10 +1,10 @@
-import { onMount } from "svelte";
-import { writable } from "svelte/store";
+import { onMount } from 'svelte';
+import { writable } from 'svelte/store';
 
 let last_set: number | null = null;
 
 const hashStore = writable<string>('');
-export const on_hash = (fn: (hash: string) => any) => {
+export const on_hash = <T>(fn: (hash: string) => T) => {
     onMount(() => {
         const hash_value = window.location.hash?.substring(1);
         hashStore.set(hash_value);

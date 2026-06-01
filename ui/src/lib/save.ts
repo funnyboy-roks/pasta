@@ -3,7 +3,7 @@ export const compress = async (data: string) => {
         start: (controller) => {
             controller.enqueue(new TextEncoder().encode(data));
             controller.close();
-        }
+        },
     });
 
     const compressed = rs.pipeThrough(new CompressionStream('gzip'));

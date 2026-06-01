@@ -14,21 +14,22 @@ import { xml } from '@codemirror/lang-xml';
 import { yaml } from '@codemirror/lang-yaml';
 import { nix } from '@replit/codemirror-lang-nix';
 
-export const supported_langs: Record<string, { name: string, language: any }> = {
-    'javascript': { name: 'JavaScript', language: javascript },
-    'typescript': { name: 'TypeScript', language: () => javascript({ typescript: true }) },
-    'cpp': { name: 'C++', language: cpp },
-    'css': { name: 'CSS', language: css },
-    'go': { name: 'Go', language: go },
-    'html': { name: 'HTML', language: html },
-    'java': { name: 'Java', language: java },
-    'markdown': { name: 'Markdown', language: markdown },
-    'php': { name: 'PHP', language: php },
-    'python': { name: 'Python', language: python },
-    'rust': { name: 'Rust', language: rust },
-    'sql': { name: 'SQL', language: sql },
-    'wast': { name: 'WAST', language: wast },
-    'xml': { name: 'XML', language: xml },
-    'yaml': { name: 'YAML', language: yaml },
-    'nix': { name: 'NIX', language: nix },
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const supported_langs: Record<string, { name: string; language: () => any }> = {
+    javascript: { name: 'JavaScript', language: javascript },
+    typescript: { name: 'TypeScript', language: () => javascript({ typescript: true }) },
+    cpp: { name: 'C++', language: cpp },
+    css: { name: 'CSS', language: css },
+    go: { name: 'Go', language: go },
+    html: { name: 'HTML', language: html },
+    java: { name: 'Java', language: java },
+    markdown: { name: 'Markdown', language: markdown },
+    php: { name: 'PHP', language: php },
+    python: { name: 'Python', language: python },
+    rust: { name: 'Rust', language: rust },
+    sql: { name: 'SQL', language: sql },
+    wast: { name: 'WAST', language: wast },
+    xml: { name: 'XML', language: xml },
+    yaml: { name: 'YAML', language: yaml },
+    nix: { name: 'NIX', language: nix },
 };
