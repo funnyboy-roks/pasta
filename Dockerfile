@@ -18,7 +18,7 @@ RUN deno ci --prod --skip-types
 
 COPY ui .
 
-RUN echo "PUBLIC_PASTA_UI_API=http://localhost:5000" > .env
+RUN echo "PUBLIC_PASTA_UI_API={{PASTA_API}}" > .env
 
 RUN deno task build
 
@@ -27,10 +27,12 @@ FROM fedora:rawhide
 
 COPY --from=comp /pasta/target/release/pasta /
 COPY --from=web-comp /pasta-ui/build /pasta-ui
+COPY docker/start.sh /start.sh
 
-ENV WEB_UI=/pasta-ui
+ENV WEB_UI=/pasta-ui-fixed
 ENV DATA_DIR=/data
 ENV DB_FILE=/db/data.db
+ENV API=http://localhost:3000
 VOLUME /data /db
 
-ENTRYPOINT ["/pasta"]
+ENTRYPOINT ["/start.sh"]
