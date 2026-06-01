@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS pastes (
+    slug TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    path TEXT NOT NULL,
+    hash BLOB NOT NULL,
+    content_type TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    PRIMARY KEY(slug)
+);

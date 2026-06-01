@@ -1,0 +1,12 @@
+variables {
+    BASE_URL "http://localhost:3000"
+    SLUG ""
+    CONTENT "hello world"
+}
+
+queries {
+    new POST "${BASE_URL}/${SLUG}" {
+        body text="${CONTENT}"
+    }
+    get GET "${BASE_URL}/${SLUG}"
+}
