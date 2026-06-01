@@ -32,7 +32,7 @@
     const ENCRYPTION_TYPE = 'application/aes256gcm-encrypted';
 
     const save = () => {
-        const saveInner = async () => {
+        const save_inner = async () => {
             saving = true;
 
             const encrypted = !!password;
@@ -80,7 +80,7 @@
             return link;
         };
 
-        toast.promise(saveInner, {
+        toast.promise(save_inner, {
             loading: 'Saving...',
             success: (link) => `Saved at ${link}\nCopied to clipboard`,
             error: (reason) => `Error saving pasta:\n${reason}`,

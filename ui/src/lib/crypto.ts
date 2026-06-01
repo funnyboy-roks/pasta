@@ -55,11 +55,14 @@ const parse_encrypted_string = (
 ): { salt: BufferSource; iv: BufferSource; cipher: BufferSource } => {
     const [salt, iv, cipher] = encrypted_string.split(':');
 
+    // Using as any here because fromBase64 is relatively new.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     return {
-        salt: Uint8Array.fromBase64(salt),
-        iv: Uint8Array.fromBase64(iv),
-        cipher: Uint8Array.fromBase64(cipher),
+        salt: (Uint8Array as any).fromBase64(salt),
+        iv: (Uint8Array as any).fromBase64(iv),
+        cipher: (Uint8Array as any).fromBase64(cipher),
     };
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 };
 
 const into_encrypted_string = ({
@@ -71,9 +74,12 @@ const into_encrypted_string = ({
     iv: Uint8Array;
     cipher: Uint8Array;
 }): string => {
-    const sStr = salt.toBase64();
-    const iStr = iv.toBase64();
-    const cStr = cipher.toBase64();
+    // Using as any here because toBase64 is relatively new.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const s_str = (salt as any).toBase64();
+    const i_str = (iv as any).toBase64();
+    const c_str = (cipher as any).toBase64();
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    return `${sStr}:${iStr}:${cStr}`;
+    return `${s_str}:${i_str}:${c_str}`;
 };

@@ -66,7 +66,7 @@ export default [
                 'error',
                 {
                     selector: 'variableLike',
-                    format: ['snake_case', 'UPPER_CASE', 'camelCase'],
+                    format: ['snake_case', 'UPPER_CASE'],
                 },
             ],
         },
