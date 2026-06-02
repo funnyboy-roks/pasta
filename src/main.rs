@@ -169,7 +169,7 @@ async fn get_one(
         }
     };
 
-    Ok((headers, body).into_response())
+    Ok((out_headers, body).into_response())
 }
 
 #[tracing::instrument(skip(state))]
