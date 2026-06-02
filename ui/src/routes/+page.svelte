@@ -11,6 +11,7 @@
     import PencilIcon from '@lucide/svelte/icons/pencil';
     import EyeIcon from '@lucide/svelte/icons/eye';
     import EyeOffIcon from '@lucide/svelte/icons/eye-off';
+    import CircleQuestionMarkIcon from '@lucide/svelte/icons/circle-question-mark';
 
     import PasswordPrompt from '$lib/components/PasswordPrompt.svelte';
     import RedirectPrompt from '$lib/components/RedirectPrompt.svelte';
@@ -22,6 +23,7 @@
     import { toast } from 'svelte-sonner';
     import { hash, on_hash, set_hash } from '$lib/store';
     import { ENCRYPTION_TYPE, save_content, type EncryptedContent } from '$lib/save';
+    import About from '$lib/components/About.svelte';
 
     let content = $state('');
     let password = $state('');
@@ -34,6 +36,7 @@
     let password_prompt = $state<PasswordPrompt>();
     let redirect = $state('');
     let create_link = $state(false);
+    let show_about = $state(false);
 
     const save = () => {
         const save_inner = async () => {
@@ -137,6 +140,7 @@
 <PasswordPrompt bind:this={password_prompt} />
 <RedirectPrompt {redirect} />
 <LinkCreation bind:open={create_link} />
+<About bind:open={show_about} />
 
 <div class="flex h-screen max-h-screen flex-col">
     <div class="flex flex-row items-center justify-between bg-secondary">
@@ -181,6 +185,9 @@
                 <Button onclick={save} disabled={saving}>
                     <SaveIcon />
                     {saving ? 'Saving...' : 'Save'}
+                </Button>
+                <Button size="icon" variant="ghost" onclick={() => show_about = true} title="About">
+                    <CircleQuestionMarkIcon class="scale-125" />
                 </Button>
             </div>
         </div>
