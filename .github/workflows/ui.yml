@@ -25,15 +25,16 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           submodules: true
-      - run: cd ui
       - name: Install Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: deno install
-        run: deno install
+        run: |
+          cd ui && deno install --dev
       - name: prettier
-        run: deno run -A npm:prettier -c .
+        run: |
+          cd ui && deno run -A npm:prettier -c .
   eslint:
     runs-on: ubuntu-latest
     name: eslint
@@ -41,12 +42,13 @@ jobs:
       - uses: actions/checkout@v6.0.2
         with:
           submodules: true
-      - run: cd ui
       - name: Install Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: deno install
-        run: deno install
+        run: |
+          cd ui && deno install --dev
       - name: eslint
-        run: deno run -A npm:eslint
+        run: |
+          cd ui && deno run -A npm:eslint
