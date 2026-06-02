@@ -186,7 +186,12 @@
                     <SaveIcon />
                     {saving ? 'Saving...' : 'Save'}
                 </Button>
-                <Button size="icon" variant="ghost" onclick={() => show_about = true} title="About">
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    onclick={() => (show_about = true)}
+                    title="About"
+                >
                     <CircleQuestionMarkIcon class="scale-125" />
                 </Button>
             </div>
