@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use anyhow::Context;
+use async_compression::tokio::bufread::GzipDecoder;
 use futures_util::StreamExt;
 use sqlx::{SqliteExecutor, prelude::FromRow};
 use time::OffsetDateTime;
@@ -146,6 +147,16 @@ impl Paste {
             .context("getting file length")?;
         let file = BufReader::new(file);
         Ok((len, file))
+    }
+
+    pub async fn get_content_decoded(&self, state: &AppState) -> anyhow::Result<String> {
+        let (content_len, file) = self.get_content(state).await?;
+        let mut s = String::with_capacity(content_len as _);
+        let mut dec = GzipDecoder::new(file);
+        dec.read_to_string(&mut s)
+            .await
+            .context("reading encrypted content")?;
+        Ok(s)
     }
 }
 
@@ -304,11 +315,12 @@ mod slug {
 }
 
 pub use hash::Hash;
-use tokio::io::{AsyncBufRead, AsyncSeekExt, BufReader};
+use tokio::io::{AsyncBufRead, AsyncReadExt, AsyncSeekExt, BufReader};
 
 use crate::AppState;
 mod hash {
     use anyhow::anyhow;
+    use axum::http::HeaderValue;
     use sqlx::{Database, Decode, Encode, Sqlite, Type};
 
     #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
@@ -322,6 +334,11 @@ mod hash {
         pub fn as_base64(&self) -> String {
             use base64::prelude::*;
             BASE64_STANDARD.encode(self.0)
+        }
+
+        pub fn to_header(self) -> HeaderValue {
+            HeaderValue::from_str(&format!("sha256=:{}:", self.as_base64()))
+                .expect("all characters in base64 and in string are be valid")
         }
     }
 

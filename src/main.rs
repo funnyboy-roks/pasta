@@ -1,4 +1,4 @@
-use std::{fmt::Debug, net::SocketAddr, ops::Not, path::PathBuf, pin::pin, sync::Arc};
+use std::{borrow::Cow, fmt::Debug, net::SocketAddr, ops::Not, path::PathBuf, pin::pin, sync::Arc};
 
 use anyhow::Context;
 use async_compression::{
@@ -16,7 +16,9 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::{get, get_service, post},
 };
+use base64::{Engine, prelude::BASE64_STANDARD};
 use futures_util::{Stream, TryStreamExt};
+use redact::Secret;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
@@ -30,11 +32,13 @@ use tracing::{info, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::{
+    crypto::{ENCRYPTED_TYPE, EncryptedContent, decrypt, encrypt},
     db::{Hash, NewPaste, Paste, Slug},
     error::HttpError,
 };
 
 mod cleanup;
+mod crypto;
 mod db;
 mod error;
 mod util;
@@ -66,6 +70,8 @@ const fn bool_true() -> bool {
 struct GetParmas {
     #[serde(default = "bool_true")]
     redirect: bool,
+    #[serde(default)]
+    password: Secret<String>,
 }
 
 #[tracing::instrument(skip(headers, state))]
@@ -84,52 +90,85 @@ async fn get_one(
         return Err(StatusCode::NOT_FOUND.into());
     }
 
-    let accept_gzip = if let Some(accept_encoding) = headers.get(ACCEPT_ENCODING)
-        && let Ok(accept_encoding) = accept_encoding.to_str()
-    {
-        accept_encoding.contains("gzip")
+    let mut out_headers = HeaderMap::new();
+    let body = if params.password.expose_secret().is_empty() {
+        let accept_gzip = if let Some(accept_encoding) = headers.get(ACCEPT_ENCODING)
+            && let Ok(accept_encoding) = accept_encoding.to_str()
+        {
+            accept_encoding.contains("gzip")
+        } else {
+            false
+        };
+
+        if let Some(c) = &paste.content_type {
+            out_headers.insert(
+                CONTENT_TYPE,
+                HeaderValue::from_str(c).context("Parsing content_type")?,
+            );
+
+            // special link handling
+            if params.redirect && c == "application/link" {
+                let s = paste.get_content_decoded(&state).await?;
+                return Ok(Redirect::temporary(&s).into_response());
+            }
+        }
+        out_headers.insert("content-digest", paste.hash.to_header());
+
+        let (content_len, file) = paste.get_content(&state).await?;
+
+        if accept_gzip {
+            out_headers.insert(CONTENT_LENGTH, content_len.into());
+            out_headers.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
+            let stream = ReaderStream::new(file);
+            Body::from_stream(stream)
+        } else {
+            let dec = GzipDecoder::new(file);
+            let stream = ReaderStream::new(dec);
+            Body::from_stream(stream)
+        }
     } else {
-        false
+        if paste
+            .content_type
+            .as_ref()
+            .is_none_or(|ct| ct != ENCRYPTED_TYPE)
+        {
+            return Ok((
+                StatusCode::BAD_REQUEST,
+                "Password not allowed on unencrypted data",
+            )
+                .into_response());
+        }
+
+        let s = paste.get_content_decoded(&state).await?;
+
+        let decrypted = decrypt(&s, Secret::new(params.password.expose_secret()))
+            .context("Parsing encrypted data")?;
+
+        if let Some(decrypted) = decrypted {
+            let content = BASE64_STANDARD
+                .decode(&**decrypted.content.expose_secret())
+                .context("decoding encrypted content as base64")?;
+
+            if let Some(ct) = decrypted.content_type {
+                let ct = ct.expose_secret().clone().into_owned();
+                out_headers.insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_str(&ct).context("Parsing content_type")?,
+                );
+
+                // special link handling
+                if params.redirect && ct == "application/link" {
+                    let s = String::from_utf8(content).context("decoding link")?;
+                    return Ok(Redirect::temporary(&s).into_response());
+                }
+            }
+
+            Body::from(content)
+        } else {
+            return Ok((StatusCode::FORBIDDEN, "Invalid Password").into_response());
+        }
     };
 
-    let (content_len, file) = paste.get_content(&state).await?;
-
-    // special link handling
-    if params.redirect
-        && let Some(content_type) = &paste.content_type
-        && content_type == "application/link"
-    {
-        let mut s = String::with_capacity(content_len as _);
-        let mut dec = GzipDecoder::new(file);
-        dec.read_to_string(&mut s)
-            .await
-            .context("reading link body")?;
-        return Ok(Redirect::temporary(&s).into_response());
-    }
-
-    let mut headers = HeaderMap::new();
-    headers.insert(
-        "content-digest",
-        HeaderValue::from_str(&format!("sha256=:{}:", paste.hash.as_base64()))
-            .expect("all characters in base64 and in string are be valid"),
-    );
-    headers.insert("content-length", content_len.into());
-    if let Some(c) = &paste.content_type {
-        headers.insert(
-            CONTENT_TYPE,
-            HeaderValue::from_str(c).context("Parsing content_type")?,
-        );
-    }
-
-    let body = if accept_gzip {
-        headers.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
-        let stream = ReaderStream::new(file);
-        Body::from_stream(stream)
-    } else {
-        let dec = GzipDecoder::new(file);
-        let stream = ReaderStream::new(dec);
-        Body::from_stream(stream)
-    };
     Ok((headers, body).into_response())
 }
 
@@ -197,12 +236,40 @@ async fn get_matching(
 async fn create_paste(
     slug: &Slug,
     headers: HeaderMap,
+    params: &PostParams,
     state: Arc<AppState>,
     body: BodyDataStream,
 ) -> Result<(), HttpError> {
     let mut compressed = Vec::with_capacity(body.size_hint().0);
 
+    let mut content_type = headers
+        .get(CONTENT_TYPE)
+        .map(|v| v.to_str())
+        .transpose()
+        .map_err(|e| HttpError::new(e, StatusCode::BAD_REQUEST))?;
+
+    let len = body.size_hint();
+
+    let body = if params.password.expose_secret().is_empty() {
+        body
+    } else {
+        let mut body = pin!(StreamReader::new(body.map_err(std::io::Error::other)));
+        content_type = Some(ENCRYPTED_TYPE);
+        let encrypted = encrypt(
+            EncryptedContent {
+                content_type: content_type.map(Cow::Borrowed).map(Secret::new),
+                content: {
+                    let mut buf = Vec::with_capacity(len.0);
+                    body.read_to_end(&mut buf).await.context("Reading body")?;
+                    Secret::new(BASE64_STANDARD.encode(buf).into())
+                },
+            },
+            Secret::new(params.password.expose_secret()),
+        );
+        Body::from(encrypted).into_data_stream()
+    };
     let mut body = pin!(StreamReader::new(body.map_err(std::io::Error::other)));
+
     let mut hash = Sha256::new();
 
     if let Some(e) = headers.get(CONTENT_ENCODING) {
@@ -267,17 +334,11 @@ async fn create_paste(
 
     // TODO: inserting after checking for slug could cause race, but it's fast enough that it's not critical
 
-    let header = headers
-        .get(CONTENT_TYPE)
-        .map(|v| v.to_str())
-        .transpose()
-        .map_err(|e| HttpError::new(e, StatusCode::BAD_REQUEST))?;
-
     NewPaste {
         slug,
         path: &path,
         hash,
-        content_type: header,
+        content_type,
         expires_in: "7 days",
     }
     .insert(&state.pool)
@@ -286,10 +347,17 @@ async fn create_paste(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+struct PostParams {
+    #[serde(default)]
+    password: Secret<String>,
+}
+
 #[axum::debug_handler]
 async fn new_paste(
     slug: Option<Path<Slug>>,
     headers: HeaderMap,
+    Query(params): Query<PostParams>,
     State(state): State<Arc<AppState>>,
     request: Request,
 ) -> Result<(StatusCode, Slug), HttpError> {
@@ -316,7 +384,7 @@ async fn new_paste(
     }
 
     let body = request.into_body().into_data_stream();
-    create_paste(&slug, headers, state, body).await?;
+    create_paste(&slug, headers, &params, state, body).await?;
 
     Ok((StatusCode::CREATED, slug))
 }
@@ -365,7 +433,20 @@ async fn main() -> anyhow::Result<()> {
         .route("/post", post(new_paste).put(new_paste))
         .route("/{slug}", post(new_paste).put(new_paste))
         .layer(RequestBodyLimitLayer::new(MAX_CONTENT_LENGTH))
-        .layer(TraceLayer::new_for_http())
+        .layer(
+            TraceLayer::new_for_http().make_span_with(|request: &Request| {
+                let mut uri = request.uri().to_string();
+                if let Some(query) = request.uri().query() {
+                    uri = uri.replace(query, "<Query Redacted>");
+                };
+                tracing::debug_span!(
+                    "request",
+                    method = %request.method(),
+                    %uri,
+                    version = ?request.version(),
+                )
+            }),
+        )
         .layer(tower_http::cors::CorsLayer::permissive())
         .with_state(state);
 

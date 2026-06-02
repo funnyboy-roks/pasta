@@ -16,6 +16,17 @@ POST /       -*
 GET  /{slug} --- Get uploaded data
 ```
 
+### `?password`
+
+When creating a pasta, specifying `?password=<password>` will cause the
+data to be encrypted.  NOTE: this does still send the original data to
+the server, it is just encrypted before it's saved.  For true end-to-end
+encryption, use the web UI or encrypt locally first.
+
+The other direction works as well; if you add `?password=<password>` to
+the GET request, it will decrypt the data (on the server) before
+responding.  This has the same caveat as the above paragraph.
+
 ### Content-Type
 
 When uploading content, set the `Content-Type` header to a value and
