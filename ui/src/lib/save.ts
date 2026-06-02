@@ -1,5 +1,5 @@
-import { PUBLIC_PASTA_UI_API } from "$env/static/public";
-import { encrypt } from "./crypto";
+import { PUBLIC_PASTA_UI_API } from '$env/static/public';
+import { encrypt } from './crypto';
 
 export type EncryptedContent = {
     content_type: string;
@@ -29,7 +29,11 @@ export const compress = async (data: string) => {
     return new Blob(chunks);
 };
 
-export const save_content = async (content: string, password: string | '', content_type: string): Promise<{ status: 'ok', link: string, slug: string } | { status: 'error', message: string }> => {
+export const save_content = async (
+    content: string,
+    password: string | '',
+    content_type: string
+): Promise<{ status: 'ok'; link: string; slug: string } | { status: 'error'; message: string }> => {
     const encrypted = !!password;
 
     const body = encrypted
@@ -68,10 +72,13 @@ export const save_content = async (content: string, password: string | '', conte
         switch (res.status) {
             case 409:
                 message = 'Slug already exists';
+                break;
             case 413:
                 message = 'Payload too large';
+                break;
             default:
                 message = 'Unknown error occurred';
+                break;
         }
         return {
             status: 'error',

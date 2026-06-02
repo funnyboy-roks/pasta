@@ -26,9 +26,7 @@
         </Dialog.Header>
         <div class="flex flex-col gap-1">
             <div class="flex flex-row justify-between">
-                <Button href={redirect} class="w-full">
-                    Proceed
-                </Button>
+                <Button href={redirect} class="w-full">Proceed</Button>
             </div>
         </div>
     </Dialog.Content>

@@ -53,6 +53,9 @@
                 case 'error': {
                     throw res.message;
                 }
+                default: {
+                    throw new Error('Uknown res.status');
+                }
             }
         };
 
@@ -132,13 +135,13 @@
 </svelte:head>
 
 <PasswordPrompt bind:this={password_prompt} />
-<RedirectPrompt redirect={redirect} />
+<RedirectPrompt {redirect} />
 <LinkCreation bind:open={create_link} />
 
 <div class="flex h-screen max-h-screen flex-col">
     <div class="flex flex-row items-center justify-between bg-secondary">
         <div class="flex flex-row items-center">
-            <Button variant="default" onclick={() => create_link = true}>
+            <Button variant="default" onclick={() => (create_link = true)}>
                 <LinkIcon /> New Link
             </Button>
             <Button href="/">

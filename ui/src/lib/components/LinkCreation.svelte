@@ -13,12 +13,12 @@
 
     let show_password = $state(false);
     let password = $state('');
-    let error = $state('');
+    const error = $state('');
 
     let saving = $state(false);
 
-    let valid = $derived.by(() => {
-        return URL.parse(url) !== null
+    const valid = $derived.by(() => {
+        return URL.parse(url) !== null;
     });
 
     const { open = $bindable(false) } = $props();
@@ -39,6 +39,9 @@
                 case 'error': {
                     throw res.message;
                 }
+                default: {
+                    throw new Error('Uknown res.status');
+                }
             }
         };
 
@@ -56,7 +59,7 @@
     };
 </script>
 
-<Dialog.Root open={open}>
+<Dialog.Root {open}>
     <Dialog.Content>
         <Dialog.Header>
             <div class="my-5 flex w-full flex-row justify-center">
@@ -70,12 +73,7 @@
         <form onsubmit={submit}>
             <div class="flex flex-col gap-1">
                 <div class="flex flex-col gap-1">
-                    <Input
-                        type="url"
-                        autofocus
-                        bind:value={url}
-                        placeholder="URL"
-                    />
+                    <Input type="url" autofocus bind:value={url} placeholder="URL" />
                     <div class="flex flex-row gap-1">
                         <Input
                             type={show_password ? 'text' : 'password'}
