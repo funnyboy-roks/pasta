@@ -31,8 +31,8 @@ responding.  This has the same caveat as the above paragraph.
 
 When uploading content, set the `Content-Type` header to a value and
 it will be returned when that item is fetched later.  The web ui uses
-`text/<language>` to do syntax highlighting and `application/aes256gcm`
-for its encrypted content.
+`text/<language>` to do syntax highlighting and
+`application/aes256gcm-encrypted` for its encrypted content.
 
 #### `application/link`
 
@@ -66,7 +66,7 @@ The encryption is done using
 [AES-GCM](https://en.wikipedia.org/wiki/Galois/Counter_Mode) with a 256
 bit key and stored as `base64(salt):base64(iv):base64(cipher)`.
 
-The content-type is set to `application/aes256`.
+The content-type is set to `application/aes256gcm-encrypted`.
 
 ## Self Hosting
 
