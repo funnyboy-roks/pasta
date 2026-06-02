@@ -67,3 +67,26 @@ The encryption is done using
 bit key and stored as `base64(salt):base64(iv):base64(cipher)`.
 
 The content-type is set to `application/aes256`.
+
+## Self Hosting
+
+Pasta is very easy to self-host as it is a self-contained docker image!
+
+Use this docker-compose for inspiration (or just copy-pasta it):
+
+```yml
+services:
+  pasta:
+    image: funnyboyroks/pasta
+    ports:
+      - 5000:3000
+    environment:
+      - API=https://p.fbr.dev # set this to the domain/location at which your server is running
+    volumes:
+      - data:/data
+      - db:/db
+    restart: unless-stopped
+volumes:
+  data: {}
+  db: {}
+```

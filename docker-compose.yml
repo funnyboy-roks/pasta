@@ -1,11 +1,14 @@
 services:
   pasta:
-    build: .
+    image: funnyboyroks/pasta
     ports:
       - 5000:3000
     environment:
       - API=http://localhost:5000
     volumes:
-      - ./data:/data
-      - ./db:/db
+      - data:/data
+      - db:/db
     restart: unless-stopped
+volumes:
+  data: {}
+  db: {}
