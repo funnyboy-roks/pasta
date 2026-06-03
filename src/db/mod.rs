@@ -13,20 +13,22 @@ pub struct NewPaste<'a> {
     pub hash: Hash,
     pub content_type: Option<&'a str>,
     pub expires_in: &'a str,
+    pub user_agent: &'a str,
 }
 
 impl NewPaste<'_> {
     pub async fn insert(self, db: impl SqliteExecutor<'_>) -> anyhow::Result<()> {
         sqlx::query!(
             r#"
-            INSERT INTO pastes (slug, path, hash, content_type, expires_at)
-            VALUES (?, ?, ?, ?, datetime('now', '+' || ?))
+            INSERT INTO pastes (slug, path, hash, content_type, expires_at, user_agent)
+            VALUES (?, ?, ?, ?, datetime('now', '+' || ?), ?)
             "#,
             self.slug,
             self.path,
             self.hash,
             self.content_type,
             self.expires_in,
+            self.user_agent,
         )
         .execute(db)
         .await
@@ -51,6 +53,7 @@ pub struct Paste {
     pub content_type: Option<String>,
     pub created_at: OffsetDateTime,
     pub expires_at: Option<OffsetDateTime>,
+    pub user_agent: String,
 }
 
 /// Database operation implementations

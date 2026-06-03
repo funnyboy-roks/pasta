@@ -332,6 +332,11 @@ async fn create_paste(
         path
     };
 
+    let user_agent = headers
+        .get("user-agent")
+        .and_then(|ua| ua.to_str().ok())
+        .unwrap_or_default();
+
     // TODO: inserting after checking for slug could cause race, but it's fast enough that it's not critical
 
     NewPaste {
@@ -340,6 +345,7 @@ async fn create_paste(
         hash,
         content_type,
         expires_in: "7 days",
+        user_agent,
     }
     .insert(&state.pool)
     .await?;
