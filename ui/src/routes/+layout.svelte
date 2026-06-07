@@ -21,16 +21,16 @@
             Fear not! You can still upload a pasta with the following command:
         </div>
         <div class="min-w-1/4 text-start">
-            <div class="w-full rounded-xl bg-gray-900 px-4 py-2 font-mono text-white">
-                {`$ curl -T <file> ${PUBLIC_PASTA_UI_API}/post`}
+            <div class="w-full rounded-xl bg-gray-900 px-4 py-2 font-mono text-white shell">
+                {`curl -T <file> ${PUBLIC_PASTA_UI_API}/post`}
             </div>
         </div>
         <div class="text-xl">
             Which will print a slug that you can then use in this command to fetch the data:
         </div>
         <div class="min-w-1/4 text-start">
-            <div class="w-full rounded-xl bg-gray-900 px-4 py-2 font-mono text-white">
-                {`$ curl ${PUBLIC_PASTA_UI_API}/<slug>`}
+            <div class="w-full rounded-xl bg-gray-900 px-4 py-2 font-mono text-white shell">
+                {`curl ${PUBLIC_PASTA_UI_API}/<slug>`}
             </div>
         </div>
     </div>
@@ -39,3 +39,9 @@
 <ModeWatcher />
 <Toaster position="top-center" richColors={true} />
 {@render children?.()}
+
+<style>
+    .shell::before {
+        content: '$ ';
+    }
+</style>
